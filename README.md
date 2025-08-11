@@ -54,8 +54,8 @@ livraison_gps/
 
 1. **Clone the repository**
 ```bash
-git clone https://github.com/yourusername/livraison-gps.git
-cd livraison-gps
+git clone https://github.com/moumay2003/livraison-gps-tracking.git
+cd livraison-gps-tracking
 ```
 
 2. **Create virtual environment**
@@ -270,7 +270,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 👨‍💻 Author
 
-**Mouad** - *Initial work*
+**Mouad (moumay2003)** - *Initial work*
 
 ## 🙏 Acknowledgments
 
