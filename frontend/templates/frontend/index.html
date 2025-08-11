@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suivi des Livreurs en Temps Réel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --success-color: #2ecc71;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        .header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 350px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #ddd;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 2;
+        }
+        
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .search-container {
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .livreurs-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        
+        .livreur-item {
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            background-color: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .livreur-item:hover {
+            background-color: #e9ecef;
+            border-left-color: #adb5bd;
+        }
+        
+        .livreur-item.active {
+            background-color: #e9f5ff;
+            border-left-color: var(--primary-color);
+        }
+        
+        .livreur-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: var(--secondary-color);
+        }
+        
+        .livreur-status {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .livreur-details {
+            padding: 20px;
+            background-color: var(--light-bg);
+            border-top: 1px solid #ddd;
+            display: none;
+        }
+        
+        .livreur-details.show {
+            display: block;
+        }
+        
+        .detail-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .livreur-icon {
+            width: 50px;
+            height: 50px;
+            background-color: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-right: 15px;
+        }
+        
+        .detail-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        .detail-phone {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .detail-section {
+            margin-top: 20px;
+        }
+        
+        .detail-section h3 {
+            font-size: 1rem;
+            color: var(--secondary-color);
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .position-info {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        
+        .info-item {
+            flex: 1;
+            min-width: 140px;
+            margin-bottom: 10px;
+        }
+        
+        .info-label {
+            font-size: 0.8rem;
+            color: #666;
+            margin-bottom: 3px;
+        }
+        
+        .info-value {
+            font-weight: 500;
+        }
+        
+        .history-toggle {
+            padding: 8px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        
+        .history-toggle:hover {
+            background-color: #2980b9;
+        }
+        
+        .history-toggle i {
+            margin-right: 5px;
+        }
+        
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .map-button {
+            width: 40px;
+            height: 40px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .map-button:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .map-button i {
+            color: var(--secondary-color);
+        }
+        
+        @media (max-width: 768px) {
+            .main-content {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                height: 50%;
+                border-right: none;
+                border-bottom: 1px solid #ddd;
+            }
+            
+            .map-container {
+                height: 50%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Suivi des Livreurs en Temps Réel</h1>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <div class="search-container">
+                    <input type="text" class="search-input" id="livreur-search" placeholder="Rechercher un livreur...">
+                </div>
+                
+                <div class="livreurs-list" id="livreurs-container">
+                    <!-- Les livreurs seront ajoutés ici dynamiquement -->
+                </div>
+                
+                <div class="livreur-details" id="livreur-details">
+                    <div class="detail-header">
+                        <div class="livreur-icon">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                            <div class="detail-name" id="detail-name">Nom du livreur</div>
+                            <div class="detail-phone" id="detail-phone">Téléphone</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h3>Position actuelle</h3>
+                        <div class="position-info">
+                            <div class="info-item">
+                                <div class="info-label">Latitude</div>
+                                <div class="info-value" id="current-lat">--</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Longitude</div>
+                                <div class="info-value" id="current-lng">--</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Dernière mise à jour</div>
+                                <div class="info-value" id="current-time">--</div>
+                            </div>
+                        </div>
+                        
+                        <button class="history-toggle" id="history-toggle">
+                            <i class="fas fa-history"></i> Afficher l'historique
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="map-controls">
+                    <div class="map-button" id="center-map">
+                        <i class="fas fa-crosshairs"></i>
+                    </div>
+                    <div class="map-button" id="toggle-all-livreurs">
+                        <i class="fas fa-users"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        // Configuration de la carte
+        const map = L.map('map').setView([48.866667, 2.333333], 12); // Paris par défaut
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Variables globales
+        const livreurMarkers = {};
+        const livreursList = {};
+        let selectedLivreurId = null;
+        let historyLineLayer = null;
+        let showAllLivreurs = true;
+        let historyVisible = false;
+        
+        // Éléments DOM
+        const livreursContainer = document.getElementById('livreurs-container');
+        const livreurSearch = document.getElementById('livreur-search');
+        const livreurDetails = document.getElementById('livreur-details');
+        const detailName = document.getElementById('detail-name');
+        const detailPhone = document.getElementById('detail-phone');
+        const currentLat = document.getElementById('current-lat');
+        const currentLng = document.getElementById('current-lng');
+        const currentTime = document.getElementById('current-time');
+        const historyToggle = document.getElementById('history-toggle');
+        const centerMapButton = document.getElementById('center-map');
+        const toggleAllLivreursButton = document.getElementById('toggle-all-livreurs');
+
+        // Icônes personnalisées pour les marqueurs
+        const defaultIcon = L.icon({
+            iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            shadowSize: [41, 41]
+        });
+        
+        const selectedIcon = L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+            shadowSize: [41, 41]
+        });
+        
+        // Connexion WebSocket
+        const socket = new WebSocket(`ws://${window.location.host}/ws/tracking/`);
+        
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+            updateLivreurPosition(data);
+        };
+        
+        socket.onclose = function(e) {
+            console.error('La connexion WebSocket a été fermée');
+        };
+        
+        // Événements
+        livreurSearch.addEventListener('input', filterLivreurs);
+        historyToggle.addEventListener('click', toggleHistory);
+        centerMapButton.addEventListener('click', centerOnSelectedLivreur);
+        toggleAllLivreursButton.addEventListener('click', toggleAllLivreursVisibility);
+        
+        // Fonctions
+        function filterLivreurs() {
+            const searchTerm = livreurSearch.value.toLowerCase();
+            const livreurItems = document.querySelectorAll('.livreur-item');
+            
+            livreurItems.forEach(item => {
+                const livreurName = item.querySelector('.livreur-name').textContent.toLowerCase();
+                if (livreurName.includes(searchTerm)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+        
+        function toggleHistory() {
+            historyVisible = !historyVisible;
+            
+            if (historyVisible) {
+                historyToggle.innerHTML = '<i class="fas fa-times"></i> Masquer l\'historique';
+                loadLivreurHistory(selectedLivreurId);
+            } else {
+                historyToggle.innerHTML = '<i class="fas fa-history"></i> Afficher l\'historique';
+                if (historyLineLayer) {
+                    map.removeLayer(historyLineLayer);
+                    historyLineLayer = null;
+                }
+            }
+        }
+        
+        function centerOnSelectedLivreur() {
+            if (selectedLivreurId && livreurMarkers[selectedLivreurId]) {
+                map.setView(livreurMarkers[selectedLivreurId].getLatLng(), 15);
+            }
+        }
+        
+        function toggleAllLivreursVisibility() {
+            showAllLivreurs = !showAllLivreurs;
+            
+            if (showAllLivreurs) {
+                toggleAllLivreursButton.innerHTML = '<i class="fas fa-users"></i>';
+                // Afficher tous les marqueurs sauf celui sélectionné
+                Object.keys(livreurMarkers).forEach(id => {
+                    if (id !== selectedLivreurId) {
+                        if (!map.hasLayer(livreurMarkers[id])) {
+                            livreurMarkers[id].addTo(map);
+                        }
+                    }
+                });
+            } else {
+                toggleAllLivreursButton.innerHTML = '<i class="fas fa-user"></i>';
+                // Masquer tous les marqueurs sauf celui sélectionné
+                Object.keys(livreurMarkers).forEach(id => {
+                    if (id !== selectedLivreurId) {
+                        if (map.hasLayer(livreurMarkers[id])) {
+                            map.removeLayer(livreurMarkers[id]);
+                        }
+                    }
+                });
+            }
+        }
+        
+        function selectLivreur(livreurId) {
+            // Réinitialiser la sélection précédente
+            if (selectedLivreurId && livreurMarkers[selectedLivreurId]) {
+                livreurMarkers[selectedLivreurId].setIcon(defaultIcon);
+                
+                const prevSelected = document.querySelector('.livreur-item.active');
+                if (prevSelected) {
+                    prevSelected.classList.remove('active');
+                }
+            }
+            
+            selectedLivreurId = livreurId;
+            
+            // Mettre à jour l'interface utilisateur
+            const livreurElement = document.getElementById(`livreur-${livreurId}`);
+            if (livreurElement) {
+                livreurElement.classList.add('active');
+            }
+            
+            // Mettre à jour les détails du livreur
+            const livreur = livreursList[livreurId];
+            if (livreur) {
+                detailName.textContent = livreur.nom;
+                detailPhone.textContent = livreur.telephone || 'Non disponible';
+                livreurDetails.classList.add('show');
+                
+                // Mettre à jour l'icône du marqueur
+                if (livreurMarkers[livreurId]) {
+                    livreurMarkers[livreurId].setIcon(selectedIcon);
+                    map.setView(livreurMarkers[livreurId].getLatLng(), 15);
+                }
+                
+                // Mettre à jour les infos de position actuelle
+                updatePositionDetails(livreurId);
+                
+                // Charger l'historique si nécessaire
+                if (historyVisible) {
+                    loadLivreurHistory(livreurId);
+                }
+            }
+        }
+        
+        function updatePositionDetails(livreurId) {
+            if (livreurMarkers[livreurId]) {
+                const position = livreurMarkers[livreurId].getLatLng();
+                currentLat.textContent = position.lat.toFixed(6);
+                currentLng.textContent = position.lng.toFixed(6);
+                
+                // Obtenir l'horodatage
+                const marker = livreurMarkers[livreurId];
+                if (marker.timestamp) {
+                    currentTime.textContent = new Date(marker.timestamp).toLocaleTimeString();
+                }
+            } else {
+                currentLat.textContent = '--';
+                currentLng.textContent = '--';
+                currentTime.textContent = '--';
+            }
+        }
+        
+        function loadLivreurHistory(livreurId) {
+            if (!livreurId) return;
+            
+            // Supprimer l'ancien tracé
+            if (historyLineLayer) {
+                map.removeLayer(historyLineLayer);
+                historyLineLayer = null;
+            }
+            
+            // Charger l'historique des positions
+            fetch(`/api/livreurs/${livreurId}/positions/`)
+                .then(response => response.json())
+                .then(positions => {
+                    if (positions.length > 0) {
+                        const points = positions.map(pos => [pos.latitude, pos.longitude]);
+                        
+                        // Créer une polyligne pour le tracé
+                        historyLineLayer = L.polyline(points, {
+                            color: '#e74c3c',
+                            weight: 3,
+                            opacity: 0.7,
+                            dashArray: '5, 10'
+                        }).addTo(map);
+                        
+                        // Ajouter des marqueurs d'historique pour les positions importantes
+                        const historyMarkers = [];
+                        // Sélectionner quelques points clés (début, fin, et quelques-uns au milieu)
+                        const step = Math.max(1, Math.floor(positions.length / 5));
+                        for (let i = 0; i < positions.length; i += step) {
+                            if (i === 0 || i === positions.length - 1 || i % step === 0) {
+                                const pos = positions[i];
+                                const historyMarker = L.circleMarker([pos.latitude, pos.longitude], {
+                                    radius: 5,
+                                    fillColor: '#e74c3c',
+                                    color: '#fff',
+                                    weight: 1,
+                                    opacity: 1,
+                                    fillOpacity: 0.8
+                                }).addTo(map);
+                                
+                                historyMarker.bindTooltip(`
+                                    <strong>Position historique</strong><br>
+                                    ${new Date(pos.timestamp).toLocaleString()}
+                                `);
+                                
+                                historyMarkers.push(historyMarker);
+                            }
+                        }
+                        
+                        // Ajuster la vue pour montrer tout l'historique
+                        const bounds = historyLineLayer.getBounds();
+                        map.fitBounds(bounds, { padding: [50, 50] });
+                    }
+                })
+                .catch(error => console.error('Erreur lors du chargement de l\'historique:', error));
+        }
+        
+        function updateLivreurPosition(data) {
+            const { livreur_id, latitude, longitude, timestamp } = data;
+            
+            // Mise à jour ou création du marqueur
+            if (livreurMarkers[livreur_id]) {
+                livreurMarkers[livreur_id].setLatLng([latitude, longitude]);
+                livreurMarkers[livreur_id].timestamp = timestamp;
+                
+                // Mettre à jour le popup
+                livreurMarkers[livreur_id].setPopupContent(`
+                    <b>${livreursList[livreur_id]?.nom || `Livreur ${livreur_id}`}</b><br>
+                    Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}<br>
+                    Mise à jour: ${new Date(timestamp).toLocaleTimeString()}
+                `);
+            } else {
+                const livreur = livreursList[livreur_id] || { nom: `Livreur ${livreur_id}` };
+                const marker = L.marker([latitude, longitude], {
+                    icon: (livreur_id === selectedLivreurId) ? selectedIcon : defaultIcon
+                }).addTo(map);
+                
+                marker.timestamp = timestamp;
+                
+                marker.bindPopup(`
+                    <b>${livreur.nom}</b><br>
+                    Position: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}<br>
+                    Mise à jour: ${new Date(timestamp).toLocaleTimeString()}
+                `);
+                
+                marker.on('click', () => {
+                    selectLivreur(livreur_id);
+                });
+                
+                livreurMarkers[livreur_id] = marker;
+            }
+            
+            // Mise à jour de l'info dans la liste
+            const livreurElement = document.getElementById(`livreur-${livreur_id}`);
+            if (livreurElement) {
+                const statusEl = livreurElement.querySelector('.livreur-status');
+                if (statusEl) {
+                    statusEl.innerHTML = `
+                        En service - ${new Date(timestamp).toLocaleTimeString()}
+                    `;
+                }
+            }
+            
+            // Si ce livreur est sélectionné, mettre à jour les détails de position
+            if (livreur_id === selectedLivreurId) {
+                updatePositionDetails(livreur_id);
+                
+                // Si l'historique est visible, le mettre à jour
+                if (historyVisible) {
+                    loadLivreurHistory(livreur_id);
+                }
+            }
+        }
+        
+        // Chargement initial des livreurs
+        fetch('/api/livreurs/')
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(livreur => {
+                    livreursList[livreur.livreur_id] = livreur;
+                    
+                    // Crée un élément pour chaque livreur
+                    const livreurElement = document.createElement('div');
+                    livreurElement.className = 'livreur-item';
+                    livreurElement.id = `livreur-${livreur.livreur_id}`;
+                    livreurElement.innerHTML = `
+                        <div class="livreur-name">${livreur.nom}</div>
+                        <div class="livreur-status">${livreur.actif ? 'En service' : 'Hors service'}</div>
+                    `;
+                    
+                    livreurElement.addEventListener('click', () => {
+                        selectLivreur(livreur.livreur_id);
+                    });
+                    
+                    livreursContainer.appendChild(livreurElement);
+                });
+                
+                // Chargement des dernières positions
+                return fetch('/api/positions/?latest=true');
+            })
+            .then(response => response.json())
+            .then(positions => {
+                positions.forEach(position => {
+                    updateLivreurPosition({
+                        livreur_id: position.livreur_id,
+                        latitude: position.latitude,
+                        longitude: position.longitude,
+                        timestamp: position.timestamp
+                    });
+                });
+                
+                // Sélectionner le premier livreur si disponible
+                if (positions.length > 0) {
+                    selectLivreur(positions[0].livreur_id);
+                }
+            })
+            .catch(error => console.error('Erreur:', error));
+    </script>
+</body>
+</html>
